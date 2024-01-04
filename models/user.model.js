@@ -18,9 +18,14 @@ const UserSchema = new Schema({
         type: String, 
         required: true,
         default: "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_960_720.png",
+    },
+    verified: {
+        type: Boolean,
+        default: false,
     }
 }, {
     timestamps: true
 });
 
-module.exports = model('User', UserSchema);
+const UserModel = model('User', UserSchema);
+module.exports = UserModel;
