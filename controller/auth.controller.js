@@ -1,7 +1,8 @@
-const { model } = require('mongoose');
 const UserModel = require('../models/user.model');
 const bcryptjs = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const errorHandler = require('../errors/errorHandler');
+const sendEmail = require('../middlewares/sendEmail');
 
 const SignUp = async (req, res, next) => {
     const { fullName, email, password } = req.body;
@@ -9,7 +10,7 @@ const SignUp = async (req, res, next) => {
         var userExists = await UserModel.findOne({ email: email });
         console.log(userExists);
         if (userExists) {
-            res.status(401).json({ message: "User with this email already exists"});
+            return next(errorHandler(401, "User with this email already exists"));
         } else {
             const hashedPassword = bcryptjs.hashSync(password, 10);
             
@@ -23,19 +24,18 @@ const SignUp = async (req, res, next) => {
             res.status(201).json({ message: 'Account created!'});
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });   
+        return next(errorHandler(error));  
     }
 };
 
 const SignIn = async (req, res, next) => {
     const { email, password } = req.body;
     try {
-        const validUser = await UserModel.findOne({ email: email});
-        if (!validUser) return res.status(500).json({ message: "Wrong password or email!" });    
-
+        const validUser = await UserModel.findOne({ email: email});    
+        if (!validUser) return next(errorHandler(401, "Invalid username or password"));
 
         const validPassword = bcryptjs.compareSync(password, validUser.password);
-        if (!validPassword) return res.status(500).json({ message: "Wrong password or email!" });    
+        if (!validPassword) return next(errorHandler(401, "Invalid username or password"));    
 
         const token = jwt.sign({ id: validUser._id }, process.env.JWT_SECRET_KEY);
 
@@ -49,11 +49,30 @@ const SignIn = async (req, res, next) => {
             .json(rest);
 
     } catch (error) {
-        res.status(500).json({ message: error.message });
+       next(errorHandler(error));
     }
 };
 
+const ForgotPassword = async (req, res, next) => {
+    try {
+        const validUser = await UserModel.findOne({ email: req.body.email});    
+        if (!validUser) return next(errorHandler(401, "Invalid email"));
+        
+        var token = jwt.sign({ email: req.body }, process.env.JWT_SECRET_KEY, { expiresIn: 1200 });
+
+        var recoveryLink = `http://localhost:3000/reset-password/${token}/${validUser._id}`;
+        
+        sendEmail(validUser.email, 'Reset Password', recoveryLink);
+
+        res.status(200).json({ message: `Password reset link sent to your email!` });
+    } catch (error) {
+        // next(errorHandler(error));
+        res.status(500).json(error);
+    }
+}
+
 module.exports = {
     SignIn,
-    SignUp
+    SignUp,
+    ForgotPassword
 }

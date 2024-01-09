@@ -4,8 +4,10 @@ const mongoose = require('mongoose');
 const app = express();
 const colors = require('colors');
 const allRoutes = require('./routes');
+const cookieParser = require('cookie-parser');
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.listen(process.env.PORT, () => {
     mongoose.connect(process.env.MONGODB_URL)
